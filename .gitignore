@@ -1,0 +1,6 @@
+.pio/
+.venv-pio/
+.playwright-cli/
+.DS_Store
+output/
+dist/

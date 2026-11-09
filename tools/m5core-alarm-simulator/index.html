@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M5Core Alarm Simulator</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      color-scheme: dark;
+      --desk: #171a1f;
+      --shell: #252a31;
+      --screen: #050607;
+      --panel: #111418;
+      --line: #d9e0e6;
+      --muted: #8b949e;
+      --lcd: #93df78;
+      --cyan: #39c8ff;
+      --amber: #f0b13e;
+      --red: #ff5757;
+      --white: #f8fafc;
+      --select: #0a6170;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 0%, #2a3038 0, var(--desk) 58%);
+      color: var(--white);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .bench {
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+      padding: 18px;
+    }
+
+    .device {
+      width: 430px;
+      padding: 28px 34px 24px;
+      border-radius: 28px;
+      background: linear-gradient(145deg, #303641, #1d2229);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+    }
+
+    .screen {
+      position: relative;
+      width: 320px;
+      height: 240px;
+      overflow: hidden;
+      background: var(--screen);
+      border-radius: 6px;
+      box-shadow: 0 0 0 8px #08090b, inset 0 0 0 1px #333942;
+      user-select: none;
+    }
+
+    .screen.rotated {
+      transform: rotate(180deg);
+    }
+
+    .keys {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 18px;
+    }
+
+    .key, .toolbar button {
+      border: 0;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .key {
+      height: 38px;
+      border-radius: 999px;
+      background: #313844;
+      color: var(--white);
+      font-weight: 800;
+      box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.35);
+    }
+
+    .key:active, .key.pressed {
+      transform: translateY(2px);
+      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+      background: #475162;
+    }
+
+    .toolbar {
+      width: min(720px, 100%);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      color: #cbd3dd;
+      font-size: 13px;
+    }
+
+    .toolbar button {
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 6px;
+      background: #2a3038;
+      color: #fff;
+    }
+
+    .topbar {
+      position: absolute;
+      inset: 0 0 auto;
+      height: 30px;
+      display: grid;
+      grid-template-columns: 1fr 76px;
+      align-items: center;
+      padding: 0 8px;
+      background: #10151d;
+      color: var(--white);
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .topbar span:last-child {
+      text-align: right;
+      color: var(--cyan);
+      font-size: 14px;
+    }
+
+    .page {
+      position: absolute;
+      inset: 30px 0 35px;
+      background: var(--screen);
+    }
+
+    .footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 35px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      align-items: center;
+      background: #303640;
+      color: var(--white);
+      font-size: 14px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .stopwatch-frame {
+      position: absolute;
+      left: 18px;
+      top: 26px;
+      width: 284px;
+      height: 96px;
+      border: 2px solid var(--line);
+      border-radius: 10px;
+      box-shadow: inset 0 0 0 10px #0d1013;
+    }
+
+    .lcd-box {
+      position: absolute;
+      left: 34px;
+      top: 52px;
+      width: 252px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border: 2px solid #394742;
+      border-radius: 4px;
+      background: #030604;
+      color: var(--lcd);
+      font: 900 44px/1 "Courier New", monospace;
+      letter-spacing: 0;
+    }
+
+    .mode-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 5px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .sub-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 136px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .sub-line.date-line {
+      font-size: 20px;
+    }
+
+
+    .sub-line.sunday {
+      color: var(--red);
+    }
+
+    .sub-line.saturday {
+      color: var(--lcd);
+    }
+
+    .wake {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 156px;
+      text-align: center;
+      color: var(--amber);
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .alarm-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 164px;
+      text-align: center;
+      color: var(--cyan);
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .list {
+      padding: 6px 10px;
+      display: grid;
+      gap: 3px;
+    }
+
+    .row {
+      height: 25px;
+      display: grid;
+      align-items: center;
+      padding: 0 10px;
+      border-radius: 4px;
+      color: var(--line);
+      font-size: 14px;
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .row.selected {
+      background: var(--select);
+      color: var(--white);
+    }
+
+    .row.off {
+      color: #5f6872;
+    }
+
+    .edit-title {
+      position: absolute;
+      left: 24px;
+      top: 12px;
+      color: var(--muted);
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .edit-time {
+      position: absolute;
+      left: 70px;
+      top: 44px;
+      color: var(--lcd);
+      font: 900 48px/1 "Courier New", monospace;
+    }
+
+    .edit-field {
+      position: absolute;
+      left: 44px;
+      color: var(--cyan);
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .edit-field.active { color: var(--amber); }
+
+    .hint {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <main class="bench">
+    <section class="device" aria-label="M5Core alarm simulator">
+      <div class="screen" id="screen"></div>
+      <div class="keys">
+        <button class="key" data-key="A">A</button>
+        <button class="key" data-key="B">B</button>
+        <button class="key" data-key="C">C</button>
+      </div>
+    </section>
+    <div class="toolbar">
+      <button id="reset">Home</button>
+      <button id="ring">Ring</button>
+      <button id="sync">Sync</button>
+      <span id="toolbarHint">Keyboard A/B/C or arrows. B confirms.</span>
+    </div>
+  </main>
+
+  <audio id="music" preload="auto" src="../../assets/builtin_alarm_music.mp3"></audio>
+
+  <script>
+    const modes = [
+      "TIME",
+      "ALARM",
+      "STOPWATCH",
+      "COUNTDOWN",
+      "POMODORO",
+      "WiFi",
+      "ROTATE",
+    ];
+    const editNames = ["Hour", "Minute", "Preview", "Enabled", "Done"];
+    const wifiRows = [
+      { ssid: "HomeWiFi", rssi: -42 },
+      { ssid: "M5-Lab", rssi: -56 },
+      { ssid: "Guest_2.4G", rssi: -68 },
+    ];
+
+    const state = {
+      page: "home",
+      mode: 0,
+      synced: true,
+      wifi: true,
+      rotate180: false,
+      ringing: false,
+      ringingAlarm: -1,
+      selectedAlarm: 0,
+      editField: 0,
+      selectedWifi: 0,
+      alarms: [
+        { hour: 7, minute: 0, enabled: true },
+        { hour: 7, minute: 30, enabled: false },
+        { hour: 8, minute: 0, enabled: false },
+        { hour: 12, minute: 30, enabled: false },
+        { hour: 22, minute: 30, enabled: false },
+      ],
+      stopwatchRunning: false,
+      stopwatchStartedAt: 0,
+      stopwatchElapsed: 0,
+      countdownDuration: 5 * 60,
+      countdownRemaining: 5 * 60,
+      countdownRunning: false,
+      countdownStartedAt: 0,
+      pomodoroRunning: false,
+      pomodoroWork: true,
+      pomodoroRound: 1,
+      pomodoroRemaining: 25 * 60,
+      pomodoroStartedAt: 0,
+    };
+
+    const screen = document.querySelector("#screen");
+    const music = document.querySelector("#music");
+    const toolbarHint = document.querySelector("#toolbarHint");
+
+    function pad(value) { return String(value).padStart(2, "0"); }
+    function modeName() { return modes[state.mode]; }
+    function now() { return new Date(); }
+    function weekdayName(date) {
+      const en = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      return en[date.getDay()];
+    }
+    function weekdayClass(date) {
+      if (date.getDay() === 0) return " sunday";
+      if (date.getDay() === 6) return " saturday";
+      return "";
+    }
+    function formatDuration(totalSeconds, centis = null) {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = Math.floor(totalSeconds % 60);
+      return centis === null ? `${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}.${pad(centis)}`;
+    }
+    function header(title) {
+      const right = state.wifi ? (state.synced ? "NTP" : "WiFi") : "OFF";
+      return `<div class="topbar"><span>${title}</span><span>${right}</span></div>`;
+    }
+    function footer(a, b, c) {
+      return `<div class="footer"><span>${a}</span><span>${b}</span><span>${c}</span></div>`;
+    }
+    function shell(title, body, a, b, c) {
+      screen.innerHTML = `${header(title)}<div class="page">${body}</div>${footer(a, b, c)}`;
+      toolbarHint.textContent = "Keyboard A/B/C or arrows. B confirms.";
+    }
+    function nextAlarm(date) {
+      const nowMinute = date.getHours() * 60 + date.getMinutes();
+      let best = null;
+      let bestDelta = 24 * 60 + 1;
+      state.alarms.forEach((alarm, index) => {
+        if (!alarm.enabled) return;
+        const alarmMinute = alarm.hour * 60 + alarm.minute;
+        let delta = alarmMinute - nowMinute;
+        if (delta < 0) delta += 24 * 60;
+        if (delta < bestDelta) {
+          bestDelta = delta;
+          best = index;
+        }
+      });
+      return best;
+    }
+
+    function nextAlarmLabel(date) {
+      const index = nextAlarm(date);
+      if (index === null) return "No alarm on";
+      const alarm = state.alarms[index];
+      return `Next ${pad(alarm.hour)}:${pad(alarm.minute)}`;
+    }
+    function currentHomeValue() {
+      const date = now();
+      if (state.mode === 0) return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      if (state.mode === 1) {
+        const index = nextAlarm(date);
+        if (index === null) return "--:--";
+        const alarm = state.alarms[index];
+        return `${pad(alarm.hour)}:${pad(alarm.minute)}`;
+      }
+      if (state.mode === 2) return formatDuration(Math.floor(stopwatchElapsed() / 1000));
+      if (state.mode === 3) return formatDuration(countdownRemaining());
+      if (state.mode === 4) return formatDuration(pomodoroRemaining());
+      if (state.mode === 5) return state.wifi ? "WiFi ON" : "WiFi --";
+      if (state.mode === 6) return state.rotate180 ? "ROT 180" : "ROT 000";
+      return "";
+    }
+    function currentHomeSub() {
+      const date = now();
+      if (state.mode === 0) return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${weekdayName(date)}`;
+      if (state.mode === 1) return "Alarm mode / OK edit";
+      if (state.mode === 2) return state.stopwatchRunning ? "running" : "paused";
+      if (state.mode === 3) return "Countdown";
+      if (state.mode === 4) return state.pomodoroWork ? "Focus" : "Break";
+      if (state.mode === 5) return state.synced ? "NTP synced" : "not synced";
+      if (state.mode === 6) return "B/C toggle 180";
+      return "";
+    }
+    function renderHome() {
+      const date = now();
+      const body = `
+        <div class="stopwatch-frame"></div>
+        <div class="lcd-box">${currentHomeValue()}</div>
+        <div class="sub-line${state.mode === 0 ? ` date-line${weekdayClass(date)}` : ""}">${currentHomeSub()}</div>
+        <div class="alarm-line">${nextAlarmLabel(date)}</div>
+        ${state.ringing ? `<div class="wake">WAKE UP</div>` : ""}
+      `;
+      shell(`MODE ${state.mode + 1}/${modes.length} ${modeName()}`, body, "MODE", "OK", "SET");
+    }
+    function renderAlarmList() {
+      const rows = state.alarms.map((alarm, index) => {
+        const selected = index === state.selectedAlarm ? " selected" : "";
+        const off = alarm.enabled ? "" : " off";
+        return `<div class="row${selected}${off}">${index + 1} &nbsp; ${pad(alarm.hour)}:${pad(alarm.minute)} &nbsp; Music &nbsp; ${alarm.enabled ? "ON" : "OFF"}</div>`;
+      }).join("") + `<div class="row${state.selectedAlarm === state.alarms.length ? " selected" : ""}">${"Back"}</div>`;
+      shell("Alarm", `<div class="list">${rows}</div>`, "PREV", "OK", "NEXT");
+    }
+    function renderAlarmEdit() {
+      const alarm = state.alarms[state.selectedAlarm];
+      const body = `
+        <div class="edit-title">${"Alarm"} ${state.selectedAlarm + 1} [${editNames[state.editField]}]</div>
+        <div class="edit-time">${pad(alarm.hour)}:${pad(alarm.minute)}</div>
+        <div class="edit-field ${state.editField === 2 ? "active" : ""}" style="top:116px">${"Preview"}: Music</div>
+        <div class="edit-field ${state.editField === 3 ? "active" : ""}" style="top:142px">${"Enabled"}: ${alarm.enabled ? "YES" : "NO"}</div>
+        <div class="edit-field ${state.editField === 4 ? "active" : ""}" style="left:226px;top:142px">${"Done"}</div>
+      `;
+      shell("Edit Alarm", body, "FIELD", "OK/+", "-");
+    }
+    function renderSoundPreview() {
+      const body = `
+        <div class="mode-line">${"Music Preview"}</div>
+        <div class="stopwatch-frame"></div>
+        <div class="lcd-box">Music</div>
+        <div class="sub-line">${"Music only, C replay"}</div>
+      `;
+      shell("Preview", body, "BACK", "OK", "REPLAY");
+    }
+    function stopwatchElapsed() {
+      return state.stopwatchElapsed + (state.stopwatchRunning ? Date.now() - state.stopwatchStartedAt : 0);
+    }
+    function renderStopwatch() {
+      const centis = Math.floor(stopwatchElapsed() / 10);
+      const body = `
+        <div class="mode-line">${state.stopwatchRunning ? "running" : "paused"}</div>
+        <div class="stopwatch-frame"></div>
+        <div class="lcd-box">${formatDuration(Math.floor(centis / 100), centis % 100)}</div>
+      `;
+      shell("Stopwatch", body, "BACK", state.stopwatchRunning ? "PAUSE" : "START", "RESET");
+    }
+    function countdownRemaining() {
+      if (!state.countdownRunning) return state.countdownRemaining;
+      const elapsed = Math.floor((Date.now() - state.countdownStartedAt) / 1000);
+      return Math.max(0, state.countdownRemaining - elapsed);
+    }
+    function renderCountdown() {
+      const body = `
+        <div class="mode-line">${"Preset"} ${formatDuration(state.countdownDuration)}</div>
+        <div class="stopwatch-frame"></div>
+        <div class="lcd-box">${formatDuration(countdownRemaining())}</div>
+      `;
+      shell("Countdown", body, "BACK", state.countdownRunning ? "PAUSE" : "START", state.countdownRunning ? "RESET" : "+1M");
+    }
+    function pomodoroRemaining() {
+      if (!state.pomodoroRunning) return state.pomodoroRemaining;
+      const elapsed = Math.floor((Date.now() - state.pomodoroStartedAt) / 1000);
+      return Math.max(0, state.pomodoroRemaining - elapsed);
+    }
+    function renderPomodoro() {
+      const body = `
+        <div class="mode-line">${state.pomodoroWork ? "Focus" : "Break"} ${state.pomodoroRound}</div>
+        <div class="stopwatch-frame"></div>
+        <div class="lcd-box">${formatDuration(pomodoroRemaining())}</div>
+      `;
+      shell("Pomodoro", body, "BACK", state.pomodoroRunning ? "PAUSE" : "START", "SKIP");
+    }
+    function renderWifi() {
+      const body = `
+        <div class="list" style="padding:18px 24px;gap:10px">
+          <div class="row">WiFi: ${state.wifi ? "connected" : "offline"}</div>
+          <div class="row">SSID: ${state.wifi ? "HomeWiFi" : "-"}</div>
+          <div class="row">IP: ${state.wifi ? "192.168.31.88" : "-"}</div>
+          <div class="row">${"Time"}: ${state.synced ? "NTP synced" : "not synced"}</div>
+        </div>
+        <div class="hint">${"B scan, C add WiFi"}</div>
+      `;
+      shell("WiFi", body, "BACK", "SCAN", "ADD");
+    }
+    function renderWifiScan() {
+      const rows = wifiRows.map((row, index) =>
+        `<div class="row${state.selectedWifi === index ? " selected" : ""}">${row.ssid} &nbsp; ${row.rssi}</div>`
+      ).join("") +
+        `<div class="row${state.selectedWifi === wifiRows.length ? " selected" : ""}">ADD WiFi</div>` +
+        `<div class="row${state.selectedWifi === wifiRows.length + 1 ? " selected" : ""}">${"Back"}</div>`;
+      shell("WiFi Scan", `<div class="list">${rows}</div>`, "PREV", "OK", "NEXT");
+    }
+    function render() {
+      screen.classList.toggle("rotated", state.rotate180);
+      if (state.page === "home") renderHome();
+      if (state.page === "alarms") renderAlarmList();
+      if (state.page === "edit") renderAlarmEdit();
+      if (state.page === "sound") renderSoundPreview();
+      if (state.page === "stopwatch") renderStopwatch();
+      if (state.page === "countdown") renderCountdown();
+      if (state.page === "pomodoro") renderPomodoro();
+      if (state.page === "wifi") renderWifi();
+      if (state.page === "wifiScan") renderWifiScan();
+    }
+    function stopMusic() {
+      music.pause();
+      music.currentTime = 0;
+    }
+    function replayMusic() {
+      music.currentTime = 0;
+      music.play().catch(() => {});
+    }
+    function triggerRing(index = state.selectedAlarm) {
+      state.ringing = true;
+      state.ringingAlarm = index;
+      replayMusic();
+      render();
+    }
+    function stopRing() {
+      state.ringing = false;
+      state.ringingAlarm = -1;
+      stopMusic();
+      render();
+    }
+    function pressA() {
+      if (state.ringing) return stopRing();
+      if (state.page === "home") state.mode = (state.mode + 1) % modes.length;
+      else if (state.page === "alarms") state.selectedAlarm = (state.selectedAlarm + state.alarms.length) % (state.alarms.length + 1);
+      else if (state.page === "edit") state.editField = (state.editField + 1) % 5;
+      else if (state.page === "sound") { stopMusic(); state.page = "edit"; state.editField = 3; }
+      else if (state.page === "wifiScan") state.selectedWifi = (state.selectedWifi + wifiRows.length + 1) % (wifiRows.length + 2);
+      else state.page = "home";
+      render();
+    }
+    function pressB() {
+      if (state.ringing) return stopRing();
+      if (state.page === "home") openMode();
+      else if (state.page === "alarms") {
+        if (state.selectedAlarm === state.alarms.length) state.page = "home";
+        else { state.page = "edit"; state.editField = 0; }
+      }
+      else if (state.page === "edit") confirmEdit();
+      else if (state.page === "sound") { stopMusic(); state.page = "edit"; state.editField = 3; }
+      else if (state.page === "stopwatch") toggleStopwatch();
+      else if (state.page === "countdown") toggleCountdown();
+      else if (state.page === "pomodoro") togglePomodoro();
+      else if (state.page === "wifi") state.page = "wifiScan";
+      else if (state.page === "wifiScan") confirmWifiScan();
+      render();
+    }
+    function pressC() {
+      if (state.ringing) return stopRing();
+      if (state.page === "home") openMode();
+      else if (state.page === "alarms") state.selectedAlarm = (state.selectedAlarm + 1) % (state.alarms.length + 1);
+      else if (state.page === "edit") changeEdit(-1);
+      else if (state.page === "sound") replayMusic();
+      else if (state.page === "stopwatch") resetStopwatch();
+      else if (state.page === "countdown") resetOrExtendCountdown();
+      else if (state.page === "pomodoro") skipPomodoro();
+      else if (state.page === "wifi") startPortal();
+      else if (state.page === "wifiScan") state.selectedWifi = (state.selectedWifi + 1) % (wifiRows.length + 2);
+      render();
+    }
+    function openMode() {
+      if (state.mode === 0) state.synced = true;
+      if (state.mode === 1) { state.selectedAlarm = 0; state.page = "alarms"; }
+      if (state.mode === 2) state.page = "stopwatch";
+      if (state.mode === 3) state.page = "countdown";
+      if (state.mode === 4) state.page = "pomodoro";
+      if (state.mode === 5) state.page = "wifi";
+      if (state.mode === 6) toggleRotation();
+    }
+    function changeEdit(delta) {
+      const alarm = state.alarms[state.selectedAlarm];
+      if (state.editField === 0) alarm.hour = (alarm.hour + delta + 24) % 24;
+      else if (state.editField === 1) alarm.minute = (alarm.minute + delta + 60) % 60;
+      else if (state.editField === 2) { state.editField = 3; return; }
+      else if (state.editField === 3) alarm.enabled = !alarm.enabled;
+      else if (state.editField === 4) state.page = "alarms";
+    }
+    function confirmEdit() {
+      if (state.editField === 2) { state.page = "sound"; replayMusic(); return; }
+      if (state.editField === 3) { state.alarms[state.selectedAlarm].enabled = !state.alarms[state.selectedAlarm].enabled; return; }
+      if (state.editField === 4) { state.page = "alarms"; return; }
+      changeEdit(1);
+    }
+    function toggleStopwatch() {
+      if (state.stopwatchRunning) {
+        state.stopwatchElapsed += Date.now() - state.stopwatchStartedAt;
+        state.stopwatchRunning = false;
+      } else {
+        state.stopwatchStartedAt = Date.now();
+        state.stopwatchRunning = true;
+      }
+    }
+    function toggleRotation() {
+      state.rotate180 = !state.rotate180;
+    }
+    function resetStopwatch() {
+      state.stopwatchRunning = false;
+      state.stopwatchElapsed = 0;
+    }
+    function toggleCountdown() {
+      if (state.countdownRunning) {
+        state.countdownRemaining = countdownRemaining();
+        state.countdownRunning = false;
+      } else if (state.countdownRemaining > 0) {
+        state.countdownStartedAt = Date.now();
+        state.countdownRunning = true;
+      }
+    }
+    function resetOrExtendCountdown() {
+      if (state.countdownRunning) {
+        state.countdownRunning = false;
+        state.countdownRemaining = state.countdownDuration;
+      } else {
+        state.countdownDuration += 60;
+        if (state.countdownDuration > 99 * 60) state.countdownDuration = 60;
+        state.countdownRemaining = state.countdownDuration;
+      }
+    }
+    function togglePomodoro() {
+      if (state.pomodoroRunning) {
+        state.pomodoroRemaining = pomodoroRemaining();
+        state.pomodoroRunning = false;
+      } else {
+        state.pomodoroStartedAt = Date.now();
+        state.pomodoroRunning = true;
+      }
+    }
+    function skipPomodoro() {
+      state.pomodoroWork = !state.pomodoroWork;
+      if (state.pomodoroWork) state.pomodoroRound++;
+      state.pomodoroRemaining = state.pomodoroWork ? 25 * 60 : 5 * 60;
+      state.pomodoroStartedAt = Date.now();
+    }
+    function startPortal() {
+      state.wifi = false;
+      state.synced = false;
+      toolbarHint.textContent = "Device AP: M5Core-Alarm, open 192.168.4.1 to add WiFi.";
+    }
+    function confirmWifiScan() {
+      if (state.selectedWifi === wifiRows.length + 1) state.page = "wifi";
+      else startPortal();
+    }
+    function tickTimers() {
+      if (state.countdownRunning && countdownRemaining() <= 0) {
+        state.countdownRunning = false;
+        state.countdownRemaining = state.countdownDuration;
+        triggerRing(-1);
+      }
+      if (state.pomodoroRunning && pomodoroRemaining() <= 0) {
+        state.pomodoroRunning = false;
+        skipPomodoro();
+        triggerRing(-1);
+      }
+    }
+    document.querySelectorAll(".key").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.dataset.key === "A") pressA();
+        if (button.dataset.key === "B") pressB();
+        if (button.dataset.key === "C") pressC();
+      });
+    });
+    document.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+      if (key === "a" || event.key === "ArrowLeft") pressA();
+      if (key === "b" || event.key === "Enter" || event.key === "ArrowDown") pressB();
+      if (key === "c" || event.key === "ArrowRight") pressC();
+    });
+    document.querySelector("#reset").addEventListener("click", () => { stopMusic(); state.page = "home"; render(); });
+    document.querySelector("#ring").addEventListener("click", () => triggerRing());
+    document.querySelector("#sync").addEventListener("click", () => { state.synced = true; render(); });
+    setInterval(() => {
+      tickTimers();
+      if (["home", "stopwatch", "countdown", "pomodoro"].includes(state.page)) render();
+    }, 250);
+    render();
+  </script>
+</body>
+</html>
